@@ -5,7 +5,7 @@ import 'react-native-gesture-handler';
 import {
   // ForgotPasswordScreen,
   HomeScreen,
-  // Dashboard,
+  Dashboard,
   // InitiatedRequests,
   // LoadBalance,
   LoginScreen,
@@ -20,7 +20,7 @@ const AppNavigator = createStackNavigator(
     LoginScreen,
     SignupScreen,
     // ForgotPasswordScreen,
-    // Dashboard,
+    Dashboard,
     // LoadBalance,
     // InitiatedRequests,
     // TransferMoney,

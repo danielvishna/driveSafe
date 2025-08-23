@@ -27,17 +27,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   //     limit: userDetails.limit || -1,
   //     balance: userDetails.balance || -1,
   // };
-  const getSecureStore = async (key: string): Promise<string | null> => {
-    return await SecureStore.getItemAsync(key);
-  };
-  const [firstLoad, setFirstLoad] = useState(true);
+  // const getSecureStore = async (key: string): Promise<string | null> => {
+  //   return await SecureStore.getItemAsync(key);
+  // };
+  // const [firstLoad, setFirstLoad] = useState(true);
 
-  const username = SecureStore.getItem('username');
-  const address = SecureStore.getItem('address');
+  // const username = SecureStore.getItem('username');
+  // const address = SecureStore.getItem('address');
 
-  if (!username || !address) {
-    return <Text style={{ color: 'red' }}>Error loading account details</Text>;
-  }
+  // if (!username || !address) {
+  //   return <Text style={{ color: 'red' }}>Error loading account details</Text>;
+  // }
 
   // const {
   //     data: listTransaction,
@@ -53,14 +53,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const queryClient = useQueryClient();
 
-  const refetch = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ['transactions', username],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['accountDetails', username],
-    });
-  };
+  // const refetch = async () => {
+  //   await queryClient.invalidateQueries({
+  //     queryKey: ['transactions', username],
+  //   });
+  //   await queryClient.invalidateQueries({
+  //     queryKey: ['accountDetails', username],
+  //   });
+  // };
   // useEffect(() => {
   //     setFirstLoad(true);
   //     if (listTransaction?.errorMessage === '' && listTransaction!.response !== null) {

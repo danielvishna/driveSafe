@@ -31,31 +31,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     password: string,
   ): Promise<void> => {
     const result = await authenticateUser(username, password);
-    if (result.success && result.data) {
+    if (result.success && result.accessToken) {
       console.log('Login successful, fetching account details...');
-      //   try {
-      //     // Fetch new account details
-      //     const newAccountDetails = await getAccountDetails(result.data);
-
-      //     if (newAccountDetails && newAccountDetails.response !== null) {
-      //       await SecureStore.setItemAsync('username', username);
-      //       await SecureStore.setItemAsync(
-      //         'address',
-      //         result.response!.access_token,
-      //       );
-
-      //       setIsLoggedIn(true);
-      //       setLogInError('');
-      //       navigation.push('Dashboard');
-      //     } else {
-      //       setIsLoggedIn(false);
-      //       setLogInError(newAccountDetails?.errorMessage || 'Unknown error');
-      //     }
-      //   } catch (error) {
-      //     console.error('Error fetching account details:', error);
-      //     setIsLoggedIn(false);
-      //     setLogInError('Error fetching account details');
-      //   }
+      navigation.push('Dashboard');
     } else {
       setIsLoggedIn(false);
       setLogInError(result.message);
@@ -71,7 +49,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       setPassword({ ...password, error: passwordError });
       return;
     }
-    // handleLogin(username.value, password.value);
+    handleLogin(username.value, password.value);
   };
   return (
     <Background>
