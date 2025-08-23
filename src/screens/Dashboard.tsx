@@ -1,6 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  Pressable,
+  Platform,
+} from 'react-native';
+import * as Keychain from 'react-native-keychain';
+
 // import { getLastTransactions, TransactionDetails } from '../clients/backendService';
 // import { AccountOverview } from '../components/AccountOverview/AccountOverview';
 import { Background } from '../components/Background/Background';
@@ -14,70 +22,30 @@ import { DashboardProps } from '../types';
 const Dashboard: React.FC<DashboardProps> = ({
   navigation,
 }: DashboardProps) => {
-  // const { data: accountDetails } = useQuery({
-  //     queryKey: ['accountDetails'],
-  //     // No need for queryFn here as we're just accessing existing data
-  // });
-  // console.log('Dasbord accountDetails: ', accountDetails);
+  const [credentials, setCredentials] = useState<any>(null);
+  const [touchCount, setTouchCount] = useState(0);
 
-  // const userDetails = navigation.state?.params?.accountDetails;
-  // const { username, address, limit, balance } = {
-  //     username: userDetails.username || 'User',
-  //     address: userDetails.address || 'Unknown',
-  //     limit: userDetails.limit || -1,
-  //     balance: userDetails.balance || -1,
-  // };
-  // const getSecureStore = async (key: string): Promise<string | null> => {
-  //   return await SecureStore.getItemAsync(key);
-  // };
-  // const [firstLoad, setFirstLoad] = useState(true);
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      const creds = await Keychain.getGenericPassword();
+      setCredentials(creds);
+    };
 
-  // const username = SecureStore.getItem('username');
-  // const address = SecureStore.getItem('address');
+    fetchCredentials();
+  }, []);
 
-  // if (!username || !address) {
-  //   return <Text style={{ color: 'red' }}>Error loading account details</Text>;
-  // }
-
-  // const {
-  //     data: listTransaction,
-  //     isError,
-  //     isLoading,
-  // } = useQuery({
-  //     queryKey: ['transactions', username],
-  //     queryFn: () => getLastTransactions(username),
-  //     enabled: !!username,
-  // });
-  // const [transactionList, setTransactionList] = useState<TransactionDetails[]>([]);
-  const [transactionListError, setTransactionListError] = useState('');
-
-  const queryClient = useQueryClient();
-
-  // const refetch = async () => {
-  //   await queryClient.invalidateQueries({
-  //     queryKey: ['transactions', username],
-  //   });
-  //   await queryClient.invalidateQueries({
-  //     queryKey: ['accountDetails', username],
-  //   });
-  // };
-  // useEffect(() => {
-  //     setFirstLoad(true);
-  //     if (listTransaction?.errorMessage === '' && listTransaction!.response !== null) {
-  //         setTransactionList(listTransaction!.response);
-  //         setTransactionListError('');
-  //     } else {
-  //         if (listTransaction?.errorMessage !== '' && listTransaction?.errorMessage !== undefined) {
-  //             console.log('Error Transactions response:', listTransaction);
-  //             console.log('Setting transaction list error:', listTransaction?.errorMessage);
-  //         }
-  //         setTransactionListError(listTransaction?.errorMessage || '');
-  //     }
-  //     setFirstLoad(false);
-  // }, [listTransaction?.errorMessage, listTransaction?.response]);
+  if (!credentials) {
+    return <Text style={{ color: 'red' }}>Error loading account details</Text>;
+  }
 
   const moveScreen = (screenName: string) => {
     navigation.navigate(screenName, {});
+  };
+
+  const handlePress = () => {
+    if (Platform.OS === 'android') {
+      setTouchCount(prev => prev + 1);
+    }
   };
 
   return (
@@ -88,7 +56,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* ) : ( */}
       {/* <> */}
       {/* <ScrollableActionMenu onPress={moveScreen} /> */}
-      {/* <Header>Account Dashboard</Header> */}
+      <Header>Account Dashboard</Header>
+      <Text>Welcome back!</Text>
+      <Text>Your address: {credentials.username}</Text>
+      {Platform.OS === 'android' && (
+        <Text style={{ marginTop: 10 }} onPress={() => setTouchCount(touchCount + 1)}>Screen touches: {touchCount}</Text>
+      )}
       {/* <AccountOverview /> */}
       {/* {transactionListError !== '' && <Text style={styles.error}>{transactionListError}</Text>} */}
       {/* <TransactionList username={username} transactions={transactionList} func={refetch} /> */}

@@ -31,13 +31,21 @@ export const authenticateUser = async (
   message: string;
   accessToken: string | null;
 }> => {
-  const result = await axiosInstance.post('/auth/login', { email, password });
-
-  return {
-    success: result.status === 201,
-    message: result.status === 201 ? 'Login successful' : 'Login failed',
-    accessToken: result.data?.access_token || null,
-  };
+  try {
+    const result = await axiosInstance.post('/auth/login', { email, password });
+    return {
+      success: result.status === 201,
+      message: result.status === 201 ? 'Login successful' : 'Login failed',
+      accessToken: result.data?.access_token || null,
+    };
+  } catch (error) {
+    console.error('Error during authentication:', error);
+    return {
+      success: false,
+      message: 'Login failed',
+      accessToken: null,
+    };
+  }
 };
 const getAccounts = async (
   url: string,
