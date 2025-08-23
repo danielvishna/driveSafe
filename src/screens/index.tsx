@@ -1,5 +1,5 @@
 // export { default as AssignedRequests } from './AssignedRequests';
-// export { default as Dashboard } from './Dashboard';
+export { default as Dashboard } from './Dashboard';
 // export { default as ForgotPasswordScreen } from './ForgotPasswordScreen';
 export { default as HomeScreen } from './HomeScreen';
 // export { default as InitiatedRequests } from './InitiatedRequests';
