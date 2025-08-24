@@ -1,6 +1,15 @@
 import { NativeModules, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
 
+// Debug: Check what native modules are available
+console.log('Available NativeModules:', Object.keys(NativeModules));
+console.log('DrivingDetection module:', NativeModules.DrivingDetection);
+
 const { DrivingDetection } = NativeModules;
+
+// Check if the module is properly loaded
+if (!DrivingDetection) {
+  console.error('DrivingDetection native module not found! Available modules:', Object.keys(NativeModules));
+}
 
 export interface DrivingData {
   isDriving: boolean;
@@ -69,6 +78,10 @@ class DrivingDetectionService {
 
   // Start the background driving detection service
   async startDrivingDetection(): Promise<string> {
+    if (!DrivingDetection) {
+      throw new Error('DrivingDetection native module is not available');
+    }
+    
     return new Promise((resolve, reject) => {
       DrivingDetection.startDrivingDetection((error: string | null, result: string) => {
         if (error) {
@@ -82,6 +95,10 @@ class DrivingDetectionService {
 
   // Stop the background driving detection service
   async stopDrivingDetection(): Promise<string> {
+    if (!DrivingDetection) {
+      throw new Error('DrivingDetection native module is not available');
+    }
+    
     return new Promise((resolve, reject) => {
       DrivingDetection.stopDrivingDetection((error: string | null, result: string) => {
         if (error) {
@@ -93,8 +110,29 @@ class DrivingDetectionService {
     });
   }
 
+  // Test the broadcast receiver
+  async testBroadcast(): Promise<string> {
+    if (!DrivingDetection) {
+      throw new Error('DrivingDetection native module is not available');
+    }
+    
+    return new Promise((resolve, reject) => {
+      DrivingDetection.testBroadcast((error: string | null, result: string) => {
+        if (error) {
+          reject(new Error(error));
+        } else {
+          resolve(result);
+        }
+      });
+    });
+  }
+
   // Check if location permission is granted
   async hasLocationPermission(): Promise<boolean> {
+    if (!DrivingDetection) {
+      throw new Error('DrivingDetection native module is not available');
+    }
+    
     return new Promise((resolve, reject) => {
       DrivingDetection.hasLocationPermission((error: string | null, hasPermission: boolean) => {
         if (error) {

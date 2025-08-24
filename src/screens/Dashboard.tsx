@@ -1,126 +1,253 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import Geolocation, {
-  GeoPosition,
-  GeoError,
-} from 'react-native-geolocation-service';
-import { PERMISSIONS, RESULTS, check, request } from 'react-native-permissions';
+import React, { useEffect, useState } from 'react';
+import { Alert, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Logout } from '../components/Logout/Logout';
 import { DashboardProps } from '../types';
-import * as Keychain from 'react-native-keychain';
-
-function mpsToKmh(mps?: number | null) {
-  if (mps == null || Number.isNaN(mps)) return 0;
-  return Math.max(0, mps * 3.6);
-}
-
-async function ensureLocationPermission(): Promise<boolean> {
-  const perm =
-    Platform.OS === 'ios'
-      ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
-      : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
-
-  let res = await check(perm);
-  if (res === RESULTS.DENIED) {
-    res = await request(perm);
-  }
-  return res === RESULTS.GRANTED || res === RESULTS.LIMITED;
-}
+import DrivingDetectionService, {
+  DrivingData,
+} from '../backend/DrivingDetectionService';
+import Button from '../components/Button/Button';
 
 const Dashboard: React.FC<DashboardProps> = ({ navigation }) => {
-  const [granted, setGranted] = useState<boolean | null>(null);
+  const [isDriving, setIsDriving] = useState(false);
+  const [isServiceRunning, setIsServiceRunning] = useState(false);
+  const [locationData, setLocationData] = useState<DrivingData | null>(null);
   const [speedKmh, setSpeedKmh] = useState(0);
-  const watchId = useRef<number | null>(null);
-  const buffer = useRef<number[]>([]);
-  const [credentials, setCredentials] = useState<any>(null);
-  // async function fetchCredentials(): Promise<void> {
-  //   const creds = await Keychain.getGenericPassword();
-  //   setCredentials(creds);
-  // }
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
 
-  const moveScreen = (screenName: string) => {
-    navigation.navigate(screenName, {});
+  const addDebugMessage = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugMessages(prev => [`${timestamp}: ${message}`, ...prev.slice(0, 9)]);
   };
 
-  const maxSamples = 5;
   useEffect(() => {
-    (async () => {
-      const ok = await ensureLocationPermission();
-      setGranted(ok);
-      if (!ok) return;
-      // fetchCredentials();
+    addDebugMessage('Dashboard mounted, setting up listener...');
 
-      watchId.current = Geolocation.watchPosition(
-        (pos: GeoPosition) => {
-          const v = mpsToKmh(pos.coords.speed);
-          buffer.current.push(v);
-          if (buffer.current.length > maxSamples) buffer.current.shift();
-          const avg =
-            buffer.current.reduce((a, b) => a + b, 0) / buffer.current.length;
-          console.log(
-            'New speed',
-            v,
-            'buffer',
-            buffer.current,
-            'avg',
-            avg,
-            buffer,
+    const removeListener = DrivingDetectionService.addListener(
+      (data: DrivingData) => {
+        setIsDriving(data.isDriving);
+        setLocationData(data);
+        setSpeedKmh(data.speed * 3.6);
+        setLastUpdateTime(new Date());
+
+        addDebugMessage(
+          `Received update: ${
+            data.isDriving ? 'DRIVING' : 'NOT DRIVING'
+          }, Speed: ${(data.speed * 3.6).toFixed(1)} km/h`,
+        );
+
+        if (data.isDriving && !isDriving) {
+          Alert.alert(
+            'Driving Detected! 🚗',
+            `Speed: ${(data.speed * 3.6).toFixed(
+              1,
+            )} km/h - Please focus on driving safely!`,
+            [{ text: 'OK' }],
           );
-          console.log(pos);
-          setSpeedKmh(Number.isFinite(avg) ? avg : 0);
-        },
-        (err: GeoError) => {
-          console.warn('Location error', err);
-        },
-        {
-          enableHighAccuracy: true,
-          distanceFilter: 0, // meters
-          interval: 100, // Android
-          fastestInterval: 200, // Android
-          showsBackgroundLocationIndicator: false, // iOS
-          forceRequestLocation: true,
-          useSignificantChanges: false,
-        },
-      );
-    })();
+          addDebugMessage('Driving alert shown to user');
+        }
+      },
+    );
 
     return () => {
-      if (watchId.current != null) {
-        Geolocation.clearWatch(watchId.current);
-        watchId.current = null;
-      }
+      removeListener();
+      addDebugMessage('Dashboard unmounted, listener removed');
     };
-  }, []);
+  }, [isDriving]);
 
-  // if (!credentials) {
-  //   return <Text style={{ color: 'red' }}>Error loading account details</Text>;
-  // }
+  const testBroadcast = async () => {
+    try {
+      addDebugMessage('Testing broadcast receiver...');
+      const result = await DrivingDetectionService.testBroadcast();
+      addDebugMessage(`Test broadcast result: ${result}`);
+      Alert.alert('Test Result', result);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      addDebugMessage(`Test broadcast error: ${errorMessage}`);
+      Alert.alert('Test Error', errorMessage);
+    }
+  };
 
-  if (granted === false) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.title}>Location permission needed</Text>
-        <Text>Enable location to show current speed.</Text>
-      </View>
-    );
-  }
+  const handleStartDetection = async () => {
+    try {
+      addDebugMessage('Requesting permissions...');
+
+      const permissionResult =
+        await DrivingDetectionService.requestPermissions();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', permissionResult.message);
+        addDebugMessage(`Permission denied: ${permissionResult.message}`);
+        return;
+      }
+
+      addDebugMessage('Permissions granted, starting service...');
+
+      const result = await DrivingDetectionService.startDrivingDetection();
+      setIsServiceRunning(true);
+      addDebugMessage(`Service started: ${result}`);
+      Alert.alert('Success', result);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      addDebugMessage(`Error: ${errorMessage}`);
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const handleStopDetection = async () => {
+    try {
+      addDebugMessage('Stopping service...');
+      const result = await DrivingDetectionService.stopDrivingDetection();
+      setIsServiceRunning(false);
+      setIsDriving(false);
+      setLocationData(null);
+      setSpeedKmh(0);
+      setLastUpdateTime(null);
+      addDebugMessage(`Service stopped: ${result}`);
+      Alert.alert('Success', result);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      addDebugMessage(`Error stopping: ${errorMessage}`);
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const clearDebugMessages = () => {
+    setDebugMessages([]);
+    addDebugMessage('Debug log cleared');
+  };
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.badge}>DriveSafe</Text>
-      <Logout navigation={navigation} />
-      <Text style={styles.speed}>{speedKmh > 5 ? speedKmh.toFixed(1) : 0}</Text>
-      <Text style={styles.unit}>km/h</Text>
-      {speedKmh > 5 && (
-        <Text style={{ color: 'orange', fontSize: 20, marginBottom: 8 }}>
-          🚗 You are driving!
+    <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+      <Text style={styles.badge}>DriveSafe Debug</Text>
+
+      {/* Service Control Buttons */}
+      <View style={styles.buttonContainer}>
+        <Button
+          mode="contained"
+          onPress={handleStartDetection}
+          disabled={isServiceRunning}
+          style={[
+            styles.button,
+            { backgroundColor: isServiceRunning ? '#666' : '#600EE6' },
+          ]}
+        >
+          {isServiceRunning ? 'Service Running' : 'Start Detection'}
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={handleStopDetection}
+          disabled={!isServiceRunning}
+          style={styles.button}
+        >
+          Stop Detection
+        </Button>
+
+        <Button
+          mode="contained"
+          onPress={testBroadcast}
+          style={[styles.button, { backgroundColor: '#FF6B35' }]}
+        >
+          Test Broadcast Receiver
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={clearDebugMessages}
+          style={styles.button}
+        >
+          Clear Debug Log
+        </Button>
+      </View>
+
+      {/* Status Display */}
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusLabel}>Service Status:</Text>
+        <Text
+          style={[
+            styles.statusValue,
+            { color: isServiceRunning ? '#4CAF50' : '#f44336' },
+          ]}
+        >
+          {isServiceRunning ? 'ACTIVE' : 'STOPPED'}
         </Text>
+      </View>
+
+      {/* Last Update Time */}
+      {lastUpdateTime && (
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusLabel}>Last Update:</Text>
+          <Text style={styles.statusValue}>
+            {lastUpdateTime.toLocaleTimeString()}
+          </Text>
+        </View>
       )}
-      <Text style={styles.tip}>
-        Tip: keep the phone near a window for better GPS.
+
+      {/* Speed Display */}
+      <Text style={styles.speedLabel}>Current Speed:</Text>
+      <Text style={styles.speed}>
+        {speedKmh > 1 ? speedKmh.toFixed(1) : '0.0'}
       </Text>
-      {/* <Text style={styles.tip}>Your address: {credentials.username}</Text> */}
-    </View>
+      <Text style={styles.unit}>km/h</Text>
+
+      {/* Driving Status */}
+      {isDriving && (
+        <View style={styles.drivingAlert}>
+          <Text style={styles.drivingText}>🚗 DRIVING DETECTED</Text>
+          <Text style={styles.safetyText}>Stay focused on the road!</Text>
+        </View>
+      )}
+
+      {/* Location Info from Background Service */}
+      {locationData && isServiceRunning && (
+        <View style={styles.locationContainer}>
+          <Text style={styles.debugTitle}>Background Service Data:</Text>
+          <Text style={styles.locationText}>
+            Location: {locationData.latitude.toFixed(6)},{' '}
+            {locationData.longitude.toFixed(6)}
+          </Text>
+          <Text style={styles.locationText}>
+            Raw Speed: {locationData.speed.toFixed(2)} m/s (
+            {(locationData.speed * 3.6).toFixed(1)} km/h)
+          </Text>
+          <Text style={styles.locationText}>
+            Status: {locationData.isDriving ? 'DRIVING' : 'NOT DRIVING'}
+          </Text>
+        </View>
+      )}
+
+      {/* Debug Messages */}
+      <View style={styles.debugContainer}>
+        <Text style={styles.debugTitle}>Debug Log:</Text>
+        <ScrollView style={styles.debugScrollView} nestedScrollEnabled={true}>
+          {debugMessages.map((message, index) => (
+            <Text key={index} style={styles.debugMessage}>
+              {message}
+            </Text>
+          ))}
+          {debugMessages.length === 0 && (
+            <Text style={styles.debugMessage}>No debug messages yet...</Text>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Tips */}
+      <Text style={styles.tip}>
+        🚨 Detection threshold lowered to 18 km/h for testing
+      </Text>
+      <Text style={styles.tip}>
+        📱 Check PowerShell: adb logcat | Select-String
+        "DrivingDetectionService"
+      </Text>
+      <Text style={styles.tip}>
+        🔧 Make sure Location is set to "Allow all the time" in app settings
+      </Text>
+
+      {/* Logout Button */}
+      <View style={styles.logoutContainer}>
+        <Logout navigation={navigation} />
+      </View>
+    </ScrollView>
   );
 };
 
@@ -128,20 +255,132 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0b1220',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
   },
-  badge: { color: '#9bb7ff', fontSize: 18, marginBottom: 8 },
-  speed: { color: 'white', fontSize: 96, fontWeight: '600', letterSpacing: 1 },
-  unit: { color: '#9bb7ff', fontSize: 24, marginTop: -8, marginBottom: 24 },
-  tip: { color: '#7f8aa3' },
-  center: {
+  container: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: 20,
+    paddingBottom: 100,
+  },
+  badge: {
+    color: '#9bb7ff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    width: '100%',
+    marginBottom: 15,
+  },
+  button: {
+    marginVertical: 3,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  statusLabel: {
+    color: '#9bb7ff',
+    fontSize: 14,
+    marginRight: 8,
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  speedLabel: {
+    color: '#9bb7ff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  speed: {
+    color: 'white',
+    fontSize: 48,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginVertical: 5,
+  },
+  unit: {
+    color: '#9bb7ff',
+    fontSize: 18,
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  drivingAlert: {
+    backgroundColor: '#ff4444',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+    width: '100%',
+  },
+  drivingText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  safetyText: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  locationContainer: {
+    backgroundColor: 'rgba(155, 183, 255, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    width: '100%',
+  },
+  locationText: {
+    color: '#9bb7ff',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 3,
+  },
+  debugContainer: {
+    backgroundColor: 'rgba(155, 183, 255, 0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    width: '100%',
+    height: 200,
+  },
+  debugScrollView: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
   },
-  title: { fontSize: 20, marginBottom: 8, fontWeight: '600' },
+  debugTitle: {
+    color: '#9bb7ff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  debugMessage: {
+    color: '#7f8aa3',
+    fontSize: 11,
+    marginBottom: 3,
+    fontFamily: 'monospace',
+  },
+  tip: {
+    color: '#7f8aa3',
+    textAlign: 'center',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  logoutContainer: {
+    width: '80%',
+    marginTop: 20,
+  },
 });
+
 export default Dashboard;

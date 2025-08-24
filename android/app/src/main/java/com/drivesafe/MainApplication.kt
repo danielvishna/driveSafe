@@ -10,14 +10,22 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 
+// Import the driving detection package - MAKE SURE THIS LINE IS PRESENT
+import com.drivesafe.drivingdetection.DrivingDetectionPackage
+
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost =
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
+              // Add the driving detection package - MAKE SURE THIS LINE IS PRESENT
+              add(DrivingDetectionPackage())
+              
+              // Debug: Let's log the packages being registered
+              forEach { pkg ->
+                android.util.Log.d("MainApplication", "Registered package: ${pkg.javaClass.simpleName}")
+              }
             }
 
         override fun getJSMainModuleName(): String = "index"
