@@ -20,15 +20,11 @@ import Logo from '../components/Logo/Logo';
 import TextInput from '../components/TextInput/TextInput';
 import { theme } from '../core/theme';
 import {
-  accountTypeValidator,
-  associatedAccountValidator,
-  limitValidator,
-  nameValidator,
-  parentValidator,
+  emailValidator,
   passwordValidator,
   repeatPasswordValidator,
-  VaOwnerValidator,
 } from '../core/validators';
+import { signup } from '../backend/backendService';
 
 type Props = {
   navigation: NavigationScreenProp<NavigationState, NavigationParams>;
@@ -36,82 +32,36 @@ type Props = {
 
 const SignupScreen = ({ navigation }: Props) => {
   const initialState = { value: '', error: '' };
-  const [username, setUserName] = useState(initialState);
+  const [email, setEmail] = useState(initialState);
   const [newPassword, setNewPassword] = useState(initialState);
   const [repeatPassword, setRepeatPassword] = useState(initialState);
-  const [accountType, setAccountType] = useState(initialState);
-  const [VaOwner, setVaOwner] = useState(initialState);
-  const [parentAccount, setParentAccount] = useState(initialState);
-  const [isLimit, setIsLimit] = useState(false);
-  const [limit, setLimit] = useState(initialState);
   const [signupError, setSignupError] = useState('');
-  const [allAccounts, setAllAccounts] = useState(['']);
-  const [allMasterAccounts, setAllMasterAccounts] = useState(['']);
-  const [associateAccounts, setAssociateAccounts] = useState(initialState);
   const [processesSignup, setProcessesSignup] = useState(false);
 
   const handleSignup = async (): Promise<void> => {
-    // const result = await signup(
-    //     username.value,
-    //     newPassword.value,
-    //     accountType.value,
-    //     parentAccount.value,
-    //     isLimit,
-    //     limit.value,
-    //     VaOwner.value,
-    //     associateAccounts.value
-    // );
-    // if (result.success) {
-    //     setSignupError('');
-    //     navigation.navigate('LoginScreen');
-    // } else {
-    //     setSignupError(result.message);
-    // }
+    const result = await signup(email.value, newPassword.value);
+    if (result.success && result.userId) {
+      setSignupError('');
+      navigation.navigate('LoginScreen');
+    } else {
+      setSignupError(result.message);
+    }
   };
 
   const _onSignUpPressed = () => {
-    const nameError = nameValidator(username.value);
+    const emailError = emailValidator(email.value);
     const passwordError = passwordValidator(newPassword.value);
     const repeatPasswordError = repeatPasswordValidator(
       newPassword.value,
       repeatPassword.value,
     );
-    const accountTypeError = accountTypeValidator(accountType.value);
-
     let getError = false;
 
-    if (passwordError || nameError || repeatPasswordError || accountTypeError) {
-      setUserName({ ...username, error: nameError });
+    if (passwordError || emailError || repeatPasswordError) {
+      setEmail({ ...email, error: emailError });
       setNewPassword({ ...newPassword, error: passwordError });
       setRepeatPassword({ ...repeatPassword, error: repeatPasswordError });
-      setAccountType({ ...accountType, error: accountTypeError });
-    }
-    if (accountType.value === 'Child Account') {
-      const parentAccountError = parentValidator(parentAccount.value);
-      let limitError = '';
-      if (isLimit) {
-        limitError = limitValidator(limit.value) || '';
-      }
-      if (parentAccountError || limitError) {
-        setParentAccount({ ...parentAccount, error: parentAccountError });
-        setLimit({ ...limit, error: limitError });
-        getError = true;
-      }
-    } else if (accountType.value === 'Virtual Account') {
-      const VaOwnerError = VaOwnerValidator(VaOwner.value);
-      const associatedAccountsError = associatedAccountValidator(
-        associateAccounts.value,
-        parentAccount.value,
-      );
-
-      if (VaOwnerError || associatedAccountsError) {
-        setVaOwner({ ...VaOwner, error: VaOwnerError });
-        setAssociateAccounts({
-          ...associateAccounts,
-          error: associatedAccountsError,
-        });
-        getError = true;
-      }
+      getError = true;
     }
     if (!getError) {
       setProcessesSignup(true);
@@ -130,12 +80,13 @@ const SignupScreen = ({ navigation }: Props) => {
       <Header>Create Account</Header>
 
       <TextInput
-        label="User Name"
+        label="email"
         returnKeyType="next"
-        value={username.value}
-        onChangeText={text => setUserName({ value: text, error: '' })}
-        error={!!username.error}
-        errorText={username.error}
+        keyboardType="email-address"
+        value={email.value}
+        onChangeText={text => setEmail({ value: text, error: '' })}
+        error={!!email.error}
+        errorText={email.error}
       />
 
       <TextInput

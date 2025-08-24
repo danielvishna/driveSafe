@@ -21,8 +21,15 @@ const HomeScreen = ({ navigation }: Props) => (
     <Logo />
     <Header>Home page</Header>
 
-    <Paragraph>The easiest way to manage money</Paragraph>
-    <Button mode="contained" onPress={() => {navigation.navigate('LoginScreen')}}>
+    <Paragraph>
+      It's easy to protect your life and the lives of those around you.
+    </Paragraph>
+    <Button
+      mode="contained"
+      onPress={() => {
+        navigation.navigate('LoginScreen');
+      }}
+    >
       Login
     </Button>
     <Button mode="outlined" onPress={() => navigation.navigate('SignupScreen')}>

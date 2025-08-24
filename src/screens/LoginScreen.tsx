@@ -4,7 +4,7 @@ import * as Keychain from 'react-native-keychain';
 // import * as SecureStore from 'expo-secure-store';
 import React, { memo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { authenticateUser, getAccountDetails } from '../backend/backendService';
+import { authenticateUser } from '../backend/backendService';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Background } from '../components/Background/Background';
 import Button from '../components/Button/Button';
@@ -12,7 +12,7 @@ import Header from '../components/Header/Header';
 import Logo from '../components/Logo/Logo';
 import TextInput from '../components/TextInput/TextInput';
 import { theme } from '../core/theme';
-import { passwordValidator, usernameValidator } from '../core/validators';
+import { passwordValidator, emailValidator } from '../core/validators';
 import { RootStackParamList } from '../types';
 type LoginScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -35,7 +35,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const result = await authenticateUser(username, password);
     if (result.success && result.accessToken) {
       console.log('Login successful, fetching account details...');
-      await Keychain.setGenericPassword('jwtToken', result.accessToken);
+      await Keychain.setGenericPassword(username, result.accessToken);
       navigation.push('Dashboard');
     } else {
       setIsLoggedIn(false);
@@ -44,7 +44,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const _onLoginPressed = async () => {
-    const usernameError = usernameValidator(username.value);
+    const usernameError = emailValidator(username.value);
     const passwordError = passwordValidator(password.value);
 
     if (usernameError || passwordError) {
@@ -63,14 +63,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       <Header>Welcome back.</Header>
 
       <TextInput
-        label="Username"
+        label="email"
+        keyboardType="email-address"
         returnKeyType="next"
         value={username.value}
         onChangeText={text => setUsername({ value: text, error: '' })}
         error={!!username.error}
         errorText={username.error}
         autoCapitalize="none"
-        textContentType="username"
+        textContentType="emailAddress"
       />
 
       <TextInput
