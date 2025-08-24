@@ -1,84 +1,95 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  Pressable,
-  Platform,
-} from 'react-native';
-import * as Keychain from 'react-native-keychain';
+import React, { useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import Geolocation, { GeoPosition, GeoError } from "react-native-geolocation-service";
+import { PERMISSIONS, RESULTS, check, request } from "react-native-permissions";
 
-// import { getLastTransactions, TransactionDetails } from '../clients/backendService';
-// import { AccountOverview } from '../components/AccountOverview/AccountOverview';
-import { Background } from '../components/Background/Background';
-import Header from '../components/Header/Header';
-import Logo from '../components/Logo/Logo';
-// import { Logout } from '../components/Logout/Logout';
-// import ScrollableActionMenu from '../components/ScrollableActionMenu/ScrollableActionMenu';
-// import { TransactionList } from '../components/TransactionList/TransactionList';
-import { DashboardProps } from '../types';
+function mpsToKmh(mps?: number | null) {
+  if (mps == null || Number.isNaN(mps)) return 0;
+  return Math.max(0, mps * 3.6);
+}
 
-const Dashboard: React.FC<DashboardProps> = ({
-  navigation,
-}: DashboardProps) => {
-  const [credentials, setCredentials] = useState<any>(null);
-  const [touchCount, setTouchCount] = useState(0);
+async function ensureLocationPermission(): Promise<boolean> {
+  const perm =
+    Platform.OS === "ios"
+      ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
+      : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
+
+  let res = await check(perm);
+  if (res === RESULTS.DENIED) {
+    res = await request(perm);
+  }
+  return res === RESULTS.GRANTED || res === RESULTS.LIMITED;
+}
+
+export default function App() {
+  const [granted, setGranted] = useState<boolean | null>(null);
+  const [speedKmh, setSpeedKmh] = useState(0);
+  const watchId = useRef<number | null>(null);
+  const buffer = useRef<number[]>([]);
+  const maxSamples = 5;
 
   useEffect(() => {
-    const fetchCredentials = async () => {
-      const creds = await Keychain.getGenericPassword();
-      setCredentials(creds);
-    };
+    (async () => {
+      const ok = await ensureLocationPermission();
+      setGranted(ok);
+      if (!ok) return;
 
-    fetchCredentials();
+      watchId.current = Geolocation.watchPosition(
+        (pos: GeoPosition) => {
+          const v = mpsToKmh(pos.coords.speed);
+          buffer.current.push(v);
+          if (buffer.current.length > maxSamples) buffer.current.shift();
+          const avg = buffer.current.reduce((a, b) => a + b, 0) / buffer.current.length;
+          setSpeedKmh(Number.isFinite(avg) ? avg : 0);
+        },
+        (err: GeoError) => {
+          console.warn("Location error", err);
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 3,    // meters
+          interval: 1000,       // Android
+          fastestInterval: 500, // Android
+          showsBackgroundLocationIndicator: false, // iOS
+          forceRequestLocation: true,
+          useSignificantChanges: false,
+        }
+      );
+    })();
+
+    return () => {
+      if (watchId.current != null) {
+        Geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+      }
+    };
   }, []);
 
-  if (!credentials) {
-    return <Text style={{ color: 'red' }}>Error loading account details</Text>;
+  if (granted === false) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.title}>Location permission needed</Text>
+        <Text>Enable location to show current speed.</Text>
+      </View>
+    );
   }
 
-  const moveScreen = (screenName: string) => {
-    navigation.navigate(screenName, {});
-  };
-
-  const handlePress = () => {
-    if (Platform.OS === 'android') {
-      setTouchCount(prev => prev + 1);
-    }
-  };
-
   return (
-    <Background>
-      <Logo />
-      {/* {isLoading || firstLoad ? ( */}
-      {/* <ActivityIndicator /> */}
-      {/* ) : ( */}
-      {/* <> */}
-      {/* <ScrollableActionMenu onPress={moveScreen} /> */}
-      <Header>Account Dashboard</Header>
-      <Text>Welcome back!</Text>
-      <Text>Your address: {credentials.username}</Text>
-      {Platform.OS === 'android' && (
-        <Text style={{ marginTop: 10 }} onPress={() => setTouchCount(touchCount + 1)}>Screen touches: {touchCount}</Text>
-      )}
-      {/* <AccountOverview /> */}
-      {/* {transactionListError !== '' && <Text style={styles.error}>{transactionListError}</Text>} */}
-      {/* <TransactionList username={username} transactions={transactionList} func={refetch} /> */}
-
-      {/* {transactionListError !== null && transactionList.length === 0 && ( */}
-      {/* <Text>No transactions to display</Text> */}
-      {/* )} */}
-      {/* <Logout navigation={navigation} /> */}
-      {/* </> */}
-      {/* )} */}
-    </Background>
+    <View style={styles.root}>
+      <Text style={styles.badge}>DriveSafe</Text>
+      <Text style={styles.speed}>{speedKmh.toFixed(1)}</Text>
+      <Text style={styles.unit}>km/h</Text>
+      <Text style={styles.tip}>Tip: keep the phone near a window for better GPS.</Text>
+    </View>
   );
-};
+}
+
 const styles = StyleSheet.create({
-  error: {
-    color: 'red',
-    marginTop: 10,
-  },
+  root: { flex: 1, backgroundColor: "#0b1220", alignItems: "center", justifyContent: "center", padding: 24 },
+  badge: { color: "#9bb7ff", fontSize: 18, marginBottom: 8 },
+  speed: { color: "white", fontSize: 96, fontWeight: "600", letterSpacing: 1 },
+  unit: { color: "#9bb7ff", fontSize: 24, marginTop: -8, marginBottom: 24 },
+  tip: { color: "#7f8aa3" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  title: { fontSize: 20, marginBottom: 8, fontWeight: "600" },
 });
-export default Dashboard;

@@ -16,7 +16,7 @@ const STATUS_SERVERERROR = 500;
 const STATUS_BADREQUEST = 400;
 
 const axiosInstance = axios.create({
-  baseURL: 'http://192.168.2.157:3001',
+  baseURL: 'http://192.168.1.193:3001',
   timeout: CONNECTION_TIMEOUT,
   headers: {
     Connection: 'close', // Force closing the connection after each request

@@ -1,4 +1,6 @@
 import { StackNavigationProp } from '@react-navigation/stack';
+import * as Keychain from 'react-native-keychain';
+
 // import * as SecureStore from 'expo-secure-store';
 import React, { memo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -33,6 +35,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const result = await authenticateUser(username, password);
     if (result.success && result.accessToken) {
       console.log('Login successful, fetching account details...');
+      await Keychain.setGenericPassword('jwtToken', result.accessToken);
       navigation.push('Dashboard');
     } else {
       setIsLoggedIn(false);
