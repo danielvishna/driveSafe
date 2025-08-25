@@ -1,15 +1,23 @@
-import { NativeModules, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
+import {
+  NativeModules,
+  DeviceEventEmitter,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 
-// Debug: Check what native modules are available
-console.log('Available NativeModules:', Object.keys(NativeModules));
-console.log('DrivingDetection module:', NativeModules.DrivingDetection);
+// // Debug: Check what native modules are available
+// console.log('Available NativeModules:', Object.keys(NativeModules));
+// console.log('DrivingDetection module:', NativeModules.DrivingDetection);
 
 const { DrivingDetection } = NativeModules;
 
-// Check if the module is properly loaded
-if (!DrivingDetection) {
-  console.error('DrivingDetection native module not found! Available modules:', Object.keys(NativeModules));
-}
+// // Check if the module is properly loaded
+// if (!DrivingDetection) {
+//   console.error(
+//     'DrivingDetection native module not found! Available modules:',
+//     Object.keys(NativeModules),
+//   );
+// }
 
 export interface DrivingData {
   isDriving: boolean;
@@ -27,16 +35,22 @@ class DrivingDetectionService {
 
   constructor() {
     this.setupEventListeners();
-  }
-
-  private setupEventListeners() {
-    // Listen for driving status changes from the background service
     this.drivingStatusListener = DeviceEventEmitter.addListener(
-      'DrivingStatusChanged',
+      'com.drivesafe.DRIVING_STATUS_CHANGED', // Change this line
       (data: DrivingData) => {
         this.isDriving = data.isDriving;
         this.notifyListeners(data);
-      }
+      },
+    );
+  }
+
+  private setupEventListeners() {
+    this.drivingStatusListener = DeviceEventEmitter.addListener(
+      'com.drivesafe.DRIVING_STATUS_CHANGED', // Change this line
+      (data: DrivingData) => {
+        this.isDriving = data.isDriving;
+        this.notifyListeners(data);
+      },
     );
   }
 
@@ -54,19 +68,21 @@ class DrivingDetectionService {
 
       // Add background location permission for Android 10+
       if (Platform.Version >= 29) {
-        permissions.push(PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION);
+        permissions.push(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+        );
       }
 
       const granted = await PermissionsAndroid.requestMultiple(permissions);
 
       const allGranted = Object.values(granted).every(
-        permission => permission === PermissionsAndroid.RESULTS.GRANTED
+        permission => permission === PermissionsAndroid.RESULTS.GRANTED,
       );
 
       if (!allGranted) {
-        return { 
-          granted: false, 
-          message: 'Location permissions are required for driving detection' 
+        return {
+          granted: false,
+          message: 'Location permissions are required for driving detection',
         };
       }
 
@@ -81,15 +97,17 @@ class DrivingDetectionService {
     if (!DrivingDetection) {
       throw new Error('DrivingDetection native module is not available');
     }
-    
+
     return new Promise((resolve, reject) => {
-      DrivingDetection.startDrivingDetection((error: string | null, result: string) => {
-        if (error) {
-          reject(new Error(error));
-        } else {
-          resolve(result);
-        }
-      });
+      DrivingDetection.startDrivingDetection(
+        (error: string | null, result: string) => {
+          if (error) {
+            reject(new Error(error));
+          } else {
+            resolve(result);
+          }
+        },
+      );
     });
   }
 
@@ -98,15 +116,17 @@ class DrivingDetectionService {
     if (!DrivingDetection) {
       throw new Error('DrivingDetection native module is not available');
     }
-    
+
     return new Promise((resolve, reject) => {
-      DrivingDetection.stopDrivingDetection((error: string | null, result: string) => {
-        if (error) {
-          reject(new Error(error));
-        } else {
-          resolve(result);
-        }
-      });
+      DrivingDetection.stopDrivingDetection(
+        (error: string | null, result: string) => {
+          if (error) {
+            reject(new Error(error));
+          } else {
+            resolve(result);
+          }
+        },
+      );
     });
   }
 
@@ -115,7 +135,7 @@ class DrivingDetectionService {
     if (!DrivingDetection) {
       throw new Error('DrivingDetection native module is not available');
     }
-    
+
     return new Promise((resolve, reject) => {
       DrivingDetection.testBroadcast((error: string | null, result: string) => {
         if (error) {
@@ -132,15 +152,17 @@ class DrivingDetectionService {
     if (!DrivingDetection) {
       throw new Error('DrivingDetection native module is not available');
     }
-    
+
     return new Promise((resolve, reject) => {
-      DrivingDetection.hasLocationPermission((error: string | null, hasPermission: boolean) => {
-        if (error) {
-          reject(new Error(error));
-        } else {
-          resolve(hasPermission);
-        }
-      });
+      DrivingDetection.hasLocationPermission(
+        (error: string | null, hasPermission: boolean) => {
+          if (error) {
+            reject(new Error(error));
+          } else {
+            resolve(hasPermission);
+          }
+        },
+      );
     });
   }
 

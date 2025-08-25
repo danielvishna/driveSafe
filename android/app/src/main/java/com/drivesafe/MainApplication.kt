@@ -24,7 +24,7 @@ class MainApplication : Application(), ReactApplication {
               
               // Debug: Let's log the packages being registered
               forEach { pkg ->
-                android.util.Log.d("MainApplication", "Registered package: ${pkg.javaClass.simpleName}")
+                 android.util.Log.d("MainApplication", "Registered package: ${pkg.javaClass.simpleName}")
               }
             }
 

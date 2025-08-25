@@ -25,7 +25,21 @@ const Dashboard: React.FC<DashboardProps> = ({ navigation }) => {
 
     const removeListener = DrivingDetectionService.addListener(
       (data: DrivingData) => {
-        setIsDriving(data.isDriving);
+        // Use the functional update form to avoid stale closures
+        setIsDriving(currentIsDriving => {
+          if (data.isDriving && !currentIsDriving) {
+            Alert.alert(
+              'Driving Detected! 🚗',
+              `Speed: ${(data.speed * 3.6).toFixed(
+                1,
+              )} km/h - Please focus on driving safely!`,
+              [{ text: 'OK' }],
+            );
+            addDebugMessage('Driving alert shown to user');
+          }
+          return data.isDriving;
+        });
+
         setLocationData(data);
         setSpeedKmh(data.speed * 3.6);
         setLastUpdateTime(new Date());
@@ -35,17 +49,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigation }) => {
             data.isDriving ? 'DRIVING' : 'NOT DRIVING'
           }, Speed: ${(data.speed * 3.6).toFixed(1)} km/h`,
         );
-
-        if (data.isDriving && !isDriving) {
-          Alert.alert(
-            'Driving Detected! 🚗',
-            `Speed: ${(data.speed * 3.6).toFixed(
-              1,
-            )} km/h - Please focus on driving safely!`,
-            [{ text: 'OK' }],
-          );
-          addDebugMessage('Driving alert shown to user');
-        }
       },
     );
 
@@ -53,7 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigation }) => {
       removeListener();
       addDebugMessage('Dashboard unmounted, listener removed');
     };
-  }, [isDriving]);
+  }, []);
 
   const testBroadcast = async () => {
     try {
